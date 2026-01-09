@@ -1,4 +1,5 @@
-import { languages, genres } from "@/data/movies";
+const languages = ["All", "Hindi", "English", "Telugu", "Tamil", "Kannada"];
+const genres = ["Action", "Comedy", "Drama", "Thriller", "Sci-Fi", "Adventure", "Romance"];
 
 interface FilterTabsProps {
   selectedLanguage: string;

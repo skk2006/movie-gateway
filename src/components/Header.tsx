@@ -1,22 +1,51 @@
-import { Search, MapPin, Menu, X } from "lucide-react";
+import { Search, MapPin, Menu, X, User, LogOut } from "lucide-react";
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { user, signOut, loading } = useAuth();
+  const navigate = useNavigate();
 
   const navLinks = ["Movies", "Events", "Sports", "Plays", "Activities"];
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+    navigate("/");
+  };
+
+  const getUserInitials = () => {
+    if (!user?.user_metadata?.full_name) return "U";
+    return user.user_metadata.full_name
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-header border-b border-border">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <div className="text-2xl font-bold text-primary">
               book<span className="text-foreground">my</span>show
             </div>
-          </div>
+          </Link>
 
           {/* Search Bar - Desktop */}
           <div className="hidden md:flex flex-1 max-w-md mx-8">
@@ -40,10 +69,50 @@ const Header = () => {
               <span>Mumbai</span>
             </button>
 
-            {/* Sign In Button */}
-            <button className="hidden sm:block px-4 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90 transition-colors">
-              Sign In
-            </button>
+            {/* Auth Section */}
+            {!loading && (
+              <>
+                {user ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8 border border-border">
+                          <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                            {getUserInitials()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-card border-border">
+                      <DropdownMenuItem disabled className="text-muted-foreground">
+                        {user.email}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator className="bg-border" />
+                      <DropdownMenuItem asChild>
+                        <Link to="/bookings" className="flex items-center gap-2 cursor-pointer">
+                          <User className="h-4 w-4" />
+                          My Bookings
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleSignOut}
+                        className="flex items-center gap-2 cursor-pointer text-destructive"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="hidden sm:block px-4 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90 transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -102,9 +171,14 @@ const Header = () => {
                 <MapPin className="h-4 w-4" />
                 <span>Mumbai</span>
               </button>
-              <button className="px-4 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded">
-                Sign In
-              </button>
+              {!loading && !user && (
+                <Link
+                  to="/login"
+                  className="px-4 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded"
+                >
+                  Sign In
+                </Link>
+              )}
             </div>
           </nav>
         </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star, Clock, MapPin, CalendarIcon } from "lucide-react";
+import { Star, Clock, MapPin, CalendarIcon, CreditCard, Smartphone, Building2, CheckCircle2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { Movie } from "@/hooks/useMovies";
 import { useGroupedShowtimes } from "@/hooks/useShowtimes";
@@ -40,8 +40,11 @@ interface BookingDialogProps {
 }
 
 import SeatSelector from "./SeatSelector";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
 
 type BookingStep = "theaters" | "selectSeats" | "seats" | "payment" | "success";
+type PaymentMethod = "debit" | "credit" | "upi";
 
 const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
   const { user } = useAuth();
@@ -63,6 +66,11 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("debit");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [upiId, setUpiId] = useState("");
 
   const dateString = format(selectedDate, "yyyy-MM-dd");
   const { data: groupedShowtimes, isLoading } = useGroupedShowtimes(movie.id, dateString);
@@ -153,7 +161,33 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
     setSeats(1);
     setSelectedSeatIds([]);
     setBookingId(null);
+    setPaymentMethod("debit");
+    setCardNumber("");
+    setCardExpiry("");
+    setCardCvv("");
+    setUpiId("");
     onOpenChange(false);
+  };
+
+  const isPaymentFormValid = () => {
+    if (paymentMethod === "upi") {
+      return upiId.includes("@");
+    }
+    return cardNumber.length >= 16 && cardExpiry.length >= 5 && cardCvv.length >= 3;
+  };
+
+  const formatCardNumber = (value: string) => {
+    const cleaned = value.replace(/\D/g, "").slice(0, 16);
+    const groups = cleaned.match(/.{1,4}/g);
+    return groups ? groups.join(" ") : cleaned;
+  };
+
+  const formatExpiry = (value: string) => {
+    const cleaned = value.replace(/\D/g, "").slice(0, 4);
+    if (cleaned.length >= 2) {
+      return cleaned.slice(0, 2) + "/" + cleaned.slice(2);
+    }
+    return cleaned;
   };
 
   const minDate = addDays(new Date(), 1);
@@ -436,55 +470,175 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
 
         {/* Step 4: Payment */}
         {step === "payment" && selectedShowtime && (
-          <div className="space-y-4">
-            <div className="bg-muted/50 rounded-lg p-4">
-              <h4 className="font-semibold text-foreground mb-3">Payment Summary</h4>
+          <div className="space-y-6">
+            {/* Booking Summary */}
+            <div className="bg-muted/30 rounded-lg p-4 border border-border">
+              <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+                Booking Summary
+              </h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Movie</span>
-                  <span>{movie.title}</span>
+                  <span className="font-medium text-foreground">{movie.title}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Theater</span>
                   <span>{selectedShowtime.theaterName}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Date</span>
-                  <span>{format(selectedDate, "EEE, dd MMM yyyy")}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Time</span>
-                  <span>{selectedShowtime.time}</span>
+                  <span>Date & Time</span>
+                  <span>{format(selectedDate, "EEE, dd MMM")} • {selectedShowtime.time}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Seats</span>
-                  <span>{selectedSeatIds.sort().join(", ")}</span>
+                  <span className="font-medium text-foreground">{selectedSeatIds.sort().join(", ")}</span>
                 </div>
-                <div className="flex justify-between font-semibold text-foreground pt-2 border-t border-border mt-2">
+                <div className="flex justify-between font-semibold text-lg text-foreground pt-3 border-t border-border mt-3">
                   <span>Total Amount</span>
-                  <span>₹{totalAmount}</span>
+                  <span className="text-primary">₹{totalAmount}</span>
                 </div>
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground text-center">
-              Click below to simulate payment processing
-            </p>
+            {/* Payment Methods */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-foreground">Select Payment Method</h4>
+              <RadioGroup
+                value={paymentMethod}
+                onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                className="space-y-3"
+              >
+                <label
+                  htmlFor="debit"
+                  className={cn(
+                    "flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors",
+                    paymentMethod === "debit"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <RadioGroupItem value="debit" id="debit" />
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">Debit Card</p>
+                    <p className="text-xs text-muted-foreground">Pay using your bank debit card</p>
+                  </div>
+                </label>
 
-            <Button
-              onClick={handlePayment}
-              className="w-full bg-primary text-primary-foreground"
-              disabled={processing}
-            >
-              {processing ? (
+                <label
+                  htmlFor="credit"
+                  className={cn(
+                    "flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors",
+                    paymentMethod === "credit"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <RadioGroupItem value="credit" id="credit" />
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">Credit Card</p>
+                    <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex accepted</p>
+                  </div>
+                </label>
+
+                <label
+                  htmlFor="upi"
+                  className={cn(
+                    "flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors",
+                    paymentMethod === "upi"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <RadioGroupItem value="upi" id="upi" />
+                  <Smartphone className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">UPI</p>
+                    <p className="text-xs text-muted-foreground">Google Pay, PhonePe, Paytm</p>
+                  </div>
+                </label>
+              </RadioGroup>
+            </div>
+
+            {/* Payment Form */}
+            <div className="space-y-4">
+              {(paymentMethod === "debit" || paymentMethod === "credit") && (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing Payment...
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Card Number</Label>
+                    <Input
+                      placeholder="1234 5678 9012 3456"
+                      value={formatCardNumber(cardNumber)}
+                      onChange={(e) => setCardNumber(e.target.value.replace(/\s/g, ""))}
+                      className="bg-muted border-border text-foreground"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Expiry Date</Label>
+                      <Input
+                        placeholder="MM/YY"
+                        value={formatExpiry(cardExpiry)}
+                        onChange={(e) => setCardExpiry(e.target.value.replace(/\//g, ""))}
+                        className="bg-muted border-border text-foreground"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-foreground">CVV</Label>
+                      <Input
+                        placeholder="123"
+                        type="password"
+                        maxLength={4}
+                        value={cardCvv}
+                        onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        className="bg-muted border-border text-foreground"
+                      />
+                    </div>
+                  </div>
                 </>
-              ) : (
-                `Pay ₹${totalAmount}`
               )}
-            </Button>
+
+              {paymentMethod === "upi" && (
+                <div className="space-y-2">
+                  <Label className="text-foreground">UPI ID</Label>
+                  <Input
+                    placeholder="yourname@upi"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    className="bg-muted border-border text-foreground"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter your UPI ID linked to Google Pay, PhonePe, or Paytm
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setStep("selectSeats")}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handlePayment}
+                className="flex-1 bg-primary text-primary-foreground"
+                disabled={processing || !isPaymentFormValid()}
+              >
+                {processing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  `Pay ₹${totalAmount}`
+                )}
+              </Button>
+            </div>
           </div>
         )}
 

@@ -39,7 +39,9 @@ interface BookingDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type BookingStep = "theaters" | "seats" | "payment" | "success";
+import SeatSelector from "./SeatSelector";
+
+type BookingStep = "theaters" | "selectSeats" | "seats" | "payment" | "success";
 
 const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
   const { user } = useAuth();
@@ -55,8 +57,10 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
     price: number;
     theaterId: string;
     theaterName: string;
+    availableSeats: number;
   } | null>(null);
   const [seats, setSeats] = useState(1);
+  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
 
@@ -70,7 +74,8 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
     time: string,
     price: number,
     theaterId: string,
-    theaterName: string
+    theaterName: string,
+    availableSeats: number
   ) => {
     if (!user) {
       toast.error("Please sign in to book tickets");
@@ -78,8 +83,13 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
       return;
     }
 
-    setSelectedShowtime({ id: showtimeId, time, price, theaterId, theaterName });
+    setSelectedShowtime({ id: showtimeId, time, price, theaterId, theaterName, availableSeats });
     setStep("seats");
+  };
+
+  const handleProceedToSeatSelection = () => {
+    setSelectedSeatIds([]);
+    setStep("selectSeats");
   };
 
   const handleBooking = async () => {
@@ -141,6 +151,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
     setSelectedDate(addDays(new Date(), 1));
     setSelectedShowtime(null);
     setSeats(1);
+    setSelectedSeatIds([]);
     setBookingId(null);
     onOpenChange(false);
   };
@@ -273,7 +284,8 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
                               showtime.show_time,
                               showtime.price,
                               theater.id,
-                              theater.name
+                              theater.name,
+                              showtime.available_seats || 100
                             )
                           }
                           className="px-4 py-2 border border-primary/50 rounded-lg text-sm hover:bg-primary hover:text-primary-foreground transition-colors group"
@@ -303,7 +315,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
           </div>
         )}
 
-        {/* Step 2: Select Seats */}
+        {/* Step 2: Select Number of Seats */}
         {step === "seats" && selectedShowtime && (
           <div className="space-y-4">
             <div className="bg-muted/30 rounded-lg p-4 border border-border">
@@ -322,9 +334,9 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
               </div>
             </div>
 
-            {/* Seats Selection */}
+            {/* Number of Seats Selection */}
             <div className="space-y-2">
-              <Label className="text-foreground">Number of Seats</Label>
+              <Label className="text-foreground">How many seats do you want to book?</Label>
               <Select value={seats.toString()} onValueChange={(v) => setSeats(parseInt(v))}>
                 <SelectTrigger className="bg-muted border-border text-foreground">
                   <SelectValue />
@@ -363,9 +375,51 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
                 Back
               </Button>
               <Button
+                onClick={handleProceedToSeatSelection}
+                className="flex-1 bg-primary text-primary-foreground"
+              >
+                Select Seats
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Select Specific Seats */}
+        {step === "selectSeats" && selectedShowtime && (
+          <div className="space-y-4">
+            <div className="bg-muted/30 rounded-lg p-4 border border-border">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-medium text-foreground">{selectedShowtime.theaterName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {format(selectedDate, "EEE, dd MMM")} • {selectedShowtime.time}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">{seats} {seats === 1 ? "seat" : "seats"}</p>
+                  <p className="font-semibold text-foreground">₹{totalAmount}</p>
+                </div>
+              </div>
+            </div>
+
+            <SeatSelector
+              maxSeats={seats}
+              availableSeats={selectedShowtime.availableSeats}
+              onSeatsSelected={setSelectedSeatIds}
+            />
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setStep("seats")}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
                 onClick={handleBooking}
                 className="flex-1 bg-primary text-primary-foreground"
-                disabled={processing}
+                disabled={processing || selectedSeatIds.length !== seats}
               >
                 {processing ? (
                   <>
@@ -380,7 +434,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
           </div>
         )}
 
-        {/* Step 3: Payment */}
+        {/* Step 4: Payment */}
         {step === "payment" && selectedShowtime && (
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-4">
@@ -404,7 +458,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Seats</span>
-                  <span>{seats}</span>
+                  <span>{selectedSeatIds.sort().join(", ")}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-foreground pt-2 border-t border-border mt-2">
                   <span>Total Amount</span>
@@ -434,7 +488,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
           </div>
         )}
 
-        {/* Step 4: Success */}
+        {/* Step 5: Success */}
         {step === "success" && selectedShowtime && (
           <div className="space-y-4 text-center">
             <div className="text-6xl">🎉</div>
@@ -460,7 +514,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Seats</span>
-                  <span>{seats}</span>
+                  <span>{selectedSeatIds.sort().join(", ")}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-foreground pt-2 border-t border-border mt-2">
                   <span>Amount Paid</span>

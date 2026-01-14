@@ -148,6 +148,36 @@ export type Database = {
         }
         Relationships: []
       }
+      seat_categories: {
+        Row: {
+          category: Database["public"]["Enums"]["seat_category"]
+          color: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price_multiplier: number
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["seat_category"]
+          color: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          price_multiplier?: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["seat_category"]
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price_multiplier?: number
+        }
+        Relationships: []
+      }
       showtimes: {
         Row: {
           available_seats: number | null
@@ -268,6 +298,7 @@ export type Database = {
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "paid" | "cancelled"
+      seat_category: "regular" | "premium" | "vip"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -396,6 +427,7 @@ export const Constants = {
   public: {
     Enums: {
       booking_status: ["pending", "confirmed", "paid", "cancelled"],
+      seat_category: ["regular", "premium", "vip"],
     },
   },
 } as const

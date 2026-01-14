@@ -39,7 +39,7 @@ interface BookingDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-import SeatSelector from "./SeatSelector";
+import SeatSelector, { SelectedSeat, SeatCategory } from "./SeatSelector";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 
@@ -63,7 +63,12 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
     availableSeats: number;
   } | null>(null);
   const [seats, setSeats] = useState(1);
-  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<SelectedSeat[]>([]);
+  const [seatCategories] = useState<SeatCategory[]>([
+    { name: "Regular", category: "regular", price_multiplier: 1.0, color: "#22c55e", description: "Standard seating" },
+    { name: "Premium", category: "premium", price_multiplier: 1.5, color: "#3b82f6", description: "Better view & legroom" },
+    { name: "VIP", category: "vip", price_multiplier: 2.0, color: "#a855f7", description: "Recliner + snacks" },
+  ]);
   const [processing, setProcessing] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("debit");
@@ -75,7 +80,22 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
   const dateString = format(selectedDate, "yyyy-MM-dd");
   const { data: groupedShowtimes, isLoading } = useGroupedShowtimes(movie.id, dateString);
 
-  const totalAmount = selectedShowtime ? seats * selectedShowtime.price : 0;
+  // Calculate total amount based on selected seats and their categories
+  const calculateTotalAmount = () => {
+    if (!selectedShowtime) return 0;
+    if (selectedSeats.length === 0) {
+      // Before seat selection, show estimate with base price
+      return seats * selectedShowtime.price;
+    }
+    // After seat selection, calculate based on categories
+    return selectedSeats.reduce((total, seat) => {
+      const category = seatCategories.find(c => c.category === seat.category);
+      const multiplier = category?.price_multiplier || 1;
+      return total + (selectedShowtime.price * multiplier);
+    }, 0);
+  };
+  
+  const totalAmount = Math.round(calculateTotalAmount());
 
   const handleSelectShowtime = (
     showtimeId: string,
@@ -96,7 +116,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
   };
 
   const handleProceedToSeatSelection = () => {
-    setSelectedSeatIds([]);
+    setSelectedSeats([]);
     setStep("selectSeats");
   };
 
@@ -159,7 +179,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
     setSelectedDate(addDays(new Date(), 1));
     setSelectedShowtime(null);
     setSeats(1);
-    setSelectedSeatIds([]);
+    setSelectedSeats([]);
     setBookingId(null);
     setPaymentMethod("debit");
     setCardNumber("");
@@ -439,7 +459,9 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
             <SeatSelector
               maxSeats={seats}
               availableSeats={selectedShowtime.availableSeats}
-              onSeatsSelected={setSelectedSeatIds}
+              basePrice={selectedShowtime.price}
+              onSeatsSelected={setSelectedSeats}
+              categories={seatCategories}
             />
 
             <div className="flex gap-2">
@@ -453,7 +475,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
               <Button
                 onClick={handleBooking}
                 className="flex-1 bg-primary text-primary-foreground"
-                disabled={processing || selectedSeatIds.length !== seats}
+                disabled={processing || selectedSeats.length !== seats}
               >
                 {processing ? (
                   <>
@@ -492,9 +514,20 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Seats</span>
-                  <span className="font-medium text-foreground">{selectedSeatIds.sort().join(", ")}</span>
+                  <span className="font-medium text-foreground">{selectedSeats.map(s => s.id).sort().join(", ")}</span>
                 </div>
-                <div className="flex justify-between font-semibold text-lg text-foreground pt-3 border-t border-border mt-3">
+                {/* Show category breakdown */}
+                <div className="space-y-1 pt-1">
+                  {seatCategories.map(cat => {
+                    const catSeats = selectedSeats.filter(s => s.category === cat.category);
+                    if (catSeats.length === 0) return null;
+                    return (
+                      <div key={cat.category} className="flex justify-between text-xs text-muted-foreground">
+                        <span style={{ color: cat.color }}>{cat.name} x{catSeats.length}</span>
+                        <span>₹{Math.round(catSeats.length * selectedShowtime.price * cat.price_multiplier)}</span>
+                      </div>
+                    );
+                  })}
                   <span>Total Amount</span>
                   <span className="text-primary">₹{totalAmount}</span>
                 </div>
@@ -668,7 +701,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Seats</span>
-                  <span>{selectedSeatIds.sort().join(", ")}</span>
+                  <span>{selectedSeats.map(s => s.id).sort().join(", ")}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-foreground pt-2 border-t border-border mt-2">
                   <span>Amount Paid</span>

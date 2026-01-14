@@ -20,6 +20,7 @@ export type Database = {
           id: string
           movie_id: string
           payment_id: string | null
+          seat_details: Json | null
           seats: number
           show_date: string
           show_time: string
@@ -33,6 +34,7 @@ export type Database = {
           id?: string
           movie_id: string
           payment_id?: string | null
+          seat_details?: Json | null
           seats?: number
           show_date: string
           show_time: string
@@ -46,6 +48,7 @@ export type Database = {
           id?: string
           movie_id?: string
           payment_id?: string | null
+          seat_details?: Json | null
           seats?: number
           show_date?: string
           show_time?: string

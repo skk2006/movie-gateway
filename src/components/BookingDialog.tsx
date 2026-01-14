@@ -133,6 +133,7 @@ const BookingDialog = ({ movie, open, onOpenChange }: BookingDialogProps) => {
         seats,
         total_amount: totalAmount,
         status: "pending",
+        seat_details: selectedSeats.map(s => ({ id: s.id, category: s.category })),
       });
 
       setBookingId(booking.id);

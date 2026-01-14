@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star } from "lucide-react";
+import { Star, Film } from "lucide-react";
 import { Movie } from "@/hooks/useMovies";
 import BookingDialog from "./BookingDialog";
 
@@ -7,6 +7,8 @@ interface MovieCardProps {
   movie: Movie;
   featured?: boolean;
 }
+
+const FALLBACK_POSTER = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&h=750&fit=crop";
 
 const MovieCard = ({ movie, featured = false }: MovieCardProps) => {
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -21,6 +23,11 @@ const MovieCard = ({ movie, featured = false }: MovieCardProps) => {
             alt={movie.title}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.onerror = null;
+              target.src = FALLBACK_POSTER;
+            }}
           />
           
           {/* Gradient Overlay */}
